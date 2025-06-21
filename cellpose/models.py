@@ -171,6 +171,7 @@ class CellposeModel:
         bsize=256,
         compute_masks=True,
         progress=None,
+        resize_flow_output=True,
     ):
         """segment list of images x, or 4D array - Z x 3 x Y x X
 
@@ -353,8 +354,9 @@ class CellposeModel:
         # undo resizing:
         if image_scaling is not None or anisotropy is not None:
 
-            dP = self._resize_gradients(dP, to_y_size=Ly_0, to_x_size=Lx_0, to_z_size=Lz_0)  # works for 2 or 3D:
-            cellprob = self._resize_cellprob(cellprob, to_x_size=Lx_0, to_y_size=Ly_0, to_z_size=Lz_0)
+            if resize_flow_output:
+                dP = self._resize_gradients(dP, to_y_size=Ly_0, to_x_size=Lx_0, to_z_size=Lz_0)  # works for 2 or 3D:
+                cellprob = self._resize_cellprob(cellprob, to_x_size=Lx_0, to_y_size=Ly_0, to_z_size=Lz_0)
 
             if do_3D:
                 if compute_masks:
