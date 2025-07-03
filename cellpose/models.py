@@ -373,6 +373,90 @@ class CellposeModel:
 
         return masks, [plot.dx_to_circ(dP), dP, cellprob], styles
 
+    def predict_mask_for_flows(
+        self,
+        x,
+        flow,
+        diameter,
+        cellprob_threshold,
+        flow_threshold,
+        min_size=15,
+        max_size_fraction=0.4,
+        niter=200,
+        z_axis=0,
+        do_3D=True,
+        channel_axis=None,
+        stitch_threshold=0.0,
+    ):
+
+        dP = flow[1]
+        cellprob = flow[2]
+
+        shape = dP.shape[1:]
+
+        # Shape is effectively ignored downstream at the time of this implementation
+        masks = self._compute_masks(
+            shape,
+            dP,
+            cellprob,
+            flow_threshold=flow_threshold,
+            cellprob_threshold=cellprob_threshold,
+            min_size=min_size,
+            max_size_fraction=max_size_fraction,
+            niter=niter,
+            stitch_threshold=stitch_threshold,
+            do_3D=do_3D,
+        )
+
+        return masks
+
+        # masks = dynamics.resize_and_compute_masks(
+        #     dP,
+        #     cellprob,
+        #     niter=niter,
+        #     cellprob_threshold=cellprob_threshold,
+        #     flow_threshold=flow_threshold,
+        #     do_3D=do_3D,
+        #     min_size=min_size,
+        #     max_size_fraction=max_size_fraction,
+        #     resize=shape[:3] if (np.array(dP.shape[-3:]) != np.array(shape[:3])).sum() else None,
+        #     device=self.device,
+        # )
+
+        # Add color channel
+        # e.g. Z Y X -> Z Y X C
+        # Added dimension filled with zeroes
+        # x = transforms.convert_image(x, channel_axis=channel_axis, z_axis=z_axis, do_3D=(do_3D or stitch_threshold > 0))
+
+        # Not relevant in the 3D case since 4 axes are already present after transforms.convert_iamge
+        # if x.ndim < 4:
+        #     x = x[np.newaxis, ...]
+        # nimg = x.shape[0]
+
+        # Remember initial image size
+        image_scaling = None
+        Ly_0 = x.shape[1]
+        Lx_0 = x.shape[2]
+        Lz_0 = None
+        if do_3D or stitch_threshold > 0:
+            Lz_0 = x.shape[0]
+
+        # Resize image to fit the cell size to training input
+        if diameter is not None:
+            image_scaling = 30.0 / diameter
+            x = transforms.resize_image(x, Ly=int(x.shape[1] * image_scaling), Lx=int(x.shape[2] * image_scaling))
+
+        # Normalisation would happen here, ignore for now
+
+        # Net prediction runs here on the resized image
+        # we just fetch the output instead
+        # CAVE: x in prediction is resized at this point, and the same is likely true for returned dP and cellprob. They are downsized to the original only afterwards. That is unfortunate!
+
+        if image_scaling is not None:
+            pass
+
+        model._compute_masks()
+
     def _resize_cellprob(self, prob: np.ndarray, to_y_size: int, to_x_size: int, to_z_size: int = None) -> np.ndarray:
         """
         Resize cellprob array to specified dimensions for either 2D or 3D.
